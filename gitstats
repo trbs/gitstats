@@ -53,8 +53,10 @@ conf = {
 }
 
 
-def getpipeoutput(cmds, quiet=False):
+def getpipeoutput(cmds, quiet=False, allow_exitcodes=None):
     global exectime_external
+    if allow_exitcodes is None:
+        allow_exitcodes = [0]
     start = time.time()
     if not quiet and ON_LINUX and os.isatty(1):
         print '>> ' + ' | '.join(cmds),
@@ -67,6 +69,8 @@ def getpipeoutput(cmds, quiet=False):
     output = p.communicate()[0]
     for p in processes:
         p.wait()
+        if p.returncode not in allow_exitcodes:
+            raise Exception("got return code: %s" % p.returncode)
     end = time.time()
     if not quiet:
         if ON_LINUX and os.isatty(1):
@@ -305,7 +309,7 @@ class GitDataCollector(DataCollector):
         # self.total_lines = int(getoutput('git-ls-files -z |xargs -0 cat |wc -l'))
 
         # tags
-        lines = getpipeoutput(['git show-ref --tags']).split('\n')
+        lines = getpipeoutput(['git show-ref --tags'], allow_exitcodes=[0, 1]).split('\n')
         for line in lines:
             if len(line) == 0:
                 continue
